@@ -25,7 +25,7 @@ namespace AudioManager
 			SoundStreamData* streamData = new SoundStreamData({ path, looping, volume, pitch, GenerateID() });
 			streamData->audio = MakeSoundStream(streamData);
 			streamData->duration = streamData->audio->getDuration().asMilliseconds();
-			audioMap[streamData->ID] = streamData;
+			audios[streamData->ID] = streamData;
 			return streamData->ID;
 		}
 	};
