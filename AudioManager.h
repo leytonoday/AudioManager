@@ -14,17 +14,25 @@
 
 namespace AudioManager
 {
-	static enum AudioStates
+	enum class AudioStates
 	{
 		STOPPED		= 0,
 		PAUSED		= 1,
 		PLAYING		= 2
 	};
-
+	
 	template <class T>
 	class AudioManagerBase
 	{
+	private:
+		unsigned int IDCounter = 0;					//This will be incremented to make unique audioIDs
+		const unsigned int AUDIO_LIMIT = 255;
+
 	protected:
+		~AudioManagerBase() 
+		{
+			UnloadAll();
+		}
 		audioID_t GenerateID()
 		{
 			return ++IDCounter;
@@ -32,28 +40,54 @@ namespace AudioManager
 		void LoadErrorDetection(const std::string& path)
 		{
 			if (!std::filesystem::exists(path))
-				throw std::exception("INVALID_PATH: path does not exist on this filesystem");
+				throw std::exception("INVALID_PATH: Does not exist on this filesystem");
 
 			if (!IsTypeSupported(path))
-				throw std::exception("UNSUPPORTED_FILE");
+				throw std::exception("UNSUPPORTED_FILE: Not a supported file type");
 
 			if (audios.size() >= AUDIO_LIMIT)
-				throw std::exception("AUDIO_LIMIT_255_EXCEEDED");
+				throw std::exception("AUDIO_LIMIT_255_EXCEEDED: Try unloading unused audios");
 		}
+		std::unordered_map<audioID_t, T*> audios;	// A map containing the currently loaded audios (could be streams or sounds)
+
 
 	public:
-		T* ReturnAudioData(int audioID)
+		//** sound control functions **
+		void Play(audioID_t audioID)
 		{
-			auto result = audios.find(audioID);
-			if (result == audios.end())
-				throw std::exception("INVALID_AUDIO_ID");
-			return &*result->second;
+			GetAudioData(audioID)->audio->play();
 		}
-		bool IsTypeSupported(const std::string& path)
+		void PlayAll()
 		{
-			const int dotIndex = path.find_last_of('.');
-			bool contains = std::find(supportedFileExtensions.begin(), supportedFileExtensions.end(), path.substr(dotIndex)) != supportedFileExtensions.end();
-			return contains;
+			for (auto& [audioID, audioData] : audios)
+				audioData->audio->play();
+		}
+		void Pause(audioID_t audioID)
+		{
+			GetAudioData(audioID)->audio->pause();
+		}
+		void PauseAll()
+		{
+			for (const auto & [audioID, audioData] : audios)
+				audioData->audio->pause();
+		}
+		void Unpause(audioID_t audioID)
+		{
+			GetAudioData(audioID)->audio->play();
+		}
+		void UnpauseAll()
+		{
+			for (const auto& [audioID, audioData] : audios)
+				audioData->audio->play();
+		}
+		void Stop(audioID_t audioID)
+		{
+			GetAudioData(audioID)->audio->stop();
+		}
+		void StopAll()
+		{
+			for (const auto& [audioID, audioData] : audios)
+				audioData->audio->stop();
 		}
 		void Unload(audioID_t audioID) 
 		{
@@ -62,146 +96,130 @@ namespace AudioManager
 			delete result->second;
 			audios.erase(result);
 		}
-
-		//** sound control functions **
-		void Play(audioID_t audioID)
+		void UnloadAll() 
 		{
-			ReturnAudioData(audioID)->audio->play();
-		}
-		void PlayAll()
-		{
-			for (auto& [key, audioData] : audios)
-				audioData->audio->play();
-		}
-		void Pause(audioID_t audioID)
-		{
-			ReturnAudioData(audioID)->audio->pause();
-		}
-		void PauseAll()
-		{
-			for (const auto & [key, audioData] : audios)
-				audioData.audio->pause();
-		}
-		void Unpause(audioID_t audioID)
-		{
-			ReturnAudioData(audioID)->audio->play();
-		}
-		void UnpauseAll()
-		{
-			for (const auto& [key, audioData] : audios)
-				audioData.audio->play();
-		}
-		void Stop(audioID_t audioID)
-		{
-			ReturnAudioData(audioID)->audio->stop();
-		}
-		void StopAll()
-		{
-			for (const auto& [key, audioData] : audios)
-				audioData.audio->stop();
+			for (auto& [audioID, audioData] : audios)
+			{
+				delete audioData->audio;
+				delete audioData;
+			}
+			audios.clear();
 		}
 
 		//** setter functions **
 		void SetPitch(audioID_t audioID, float pitch)
 		{
-			ReturnAudioData(audioID)->audio->setPitch(std::clamp(pitch, 0, 15));
+			GetAudioData(audioID)->audio->setPitch(std::clamp(pitch, 0.0f, 15.0f));
 		}
 		void SetPitchAll(float pitch)
 		{
-			for (const auto& [key, audioData] : audios)
-				audioData.audio->setPitch(std::clamp(pitch, 0, 15));
+			for (const auto& [audioID, audioData] : audios)
+				audioData->audio->setPitch(std::clamp(pitch, 0.0f, 15.0f));
 		}
 		void SetVolume(audioID_t audioID, float volume)
 		{
-			ReturnAudioData(audioID)->audio->setVolume(std::clamp(volume, 0.0f, 100.0f));
+			GetAudioData(audioID)->audio->setVolume(std::clamp(volume, 0.0f, 100.0f));
 		}
 		void SetVolumeAll(float volume)
 		{
-			for (const auto& [key, audioData] : audios)
-				audioData.audio->setVolume(std::clamp(volume, 0, 100));
+			for (const auto& [audioID, audioData] : audios)
+				audioData->audio->setVolume(std::clamp(volume, 0.0f, 100.0f));
 		}
 		void SetPlayingPosition(audioID_t audioID, int position)
 		{
-			sf::Time offset = sf::milliseconds(std::clamp(position, 0, GetDuration(audioID)));
-			ReturnAudioData(audioID)->audio->setPlayingOffset(offset);
+			T* audioData = GetAudioData(audioID);
+			if (position > audioData->duration)
+				return Stop(audioID);
+			audioData->audio->setPlayingOffset(sf::milliseconds(std::clamp(position, 0, GetDuration(audioID))));
 		}
 		void SetPlayingPositionAll(int position)
 		{
-			for (const auto& [key, audioData] : audios)
-			{
-				sf::Time offset = sf::milliseconds(position);
-				audioData.audio->setPlayingOffset(std::clamp(position, 0, GetDuration(key)));
-			}
+			for (const auto& [audioID, audioData] : audios)
+				SetPlayingPosition(audioID, position);
 		}
 		
-
 		//** getter functions **
+		T* GetAudioData(int audioID)
+		{
+			auto result = audios.find(audioID);
+			if (result == audios.end())
+				throw std::exception("INVALID_AUDIO_ID");
+			return &*result->second;
+		}
 		float GetPitch(audioID_t audioID)
 		{
-			return ReturnAudioData(audioID)->audio->getPitch();
+			return GetAudioData(audioID)->audio->getPitch();
 		}
 		float GetVolume(audioID_t audioID) 
 		{
-			return ReturnAudioData(audioID)->audio->getVolume();
+			return GetAudioData(audioID)->audio->getVolume();
 		}
 		float GetPlayingPosition(audioID_t audioID) 
 		{
-			return ReturnAudioData(audioID)->audio->getPlayingOffset().asMilliseconds();
+			return GetAudioData(audioID)->audio->getPlayingOffset().asMilliseconds();
 		}
-		int GetCount()
+		int GetAudioCount()
 		{
 			return audios.size();
 		}
 		int GetDuration(audioID_t audioID)
 		{
-			return ReturnAudioData(audioID)->duration;
+			return GetAudioData(audioID)->duration;
+		}
+		int GetAudioLimit()
+		{
+			return AUDIO_LIMIT;
 		}
 		std::vector<int> GetAllIDs()
 		{
 			std::vector<int> IDs;
-			for (const auto & [key, audioData]: audios)
-				IDs.push_back(key);
+			for (const auto & [audioID, audioData]: audios)
+				IDs.push_back(audioID);
 			return IDs;
 		}
 		std::string GetPath(audioID_t audioID)
 		{
-			return ReturnAudioData(audioID)->path;
+			return GetAudioData(audioID)->path;
 		}
 		
-		int IsPaused(audioID_t audioID) 
+		bool IsTypeSupported(const std::string& path)
 		{
-			return ReturnAudioData(audioID)->audio->getStatus() == PAUSED;
-		}
-		int IsPlaying(audioID_t audioID) 
-		{
-			return ReturnAudioData(audioID)->audio->getStatus() == PLAYING;
+			const int dotIndex = path.find_last_of('.');
+			const std::string extension = path.substr(dotIndex);
+			for (std::string i : supportedFileExtensions)
+				if (extension == i)
+					return true;
+			return false;
 		}
 		bool IsManagerActive()
 		{
 			bool active = false;
-			for (const auto & [key, audioData]: audios)
-				active = IsPlaying(key);
+			for (const auto & [audioID, audioData]: audios)
+				active = IsPlaying(audioID);
 			return active;
+		}
+		int IsPaused(audioID_t audioID) 
+		{
+			return GetAudioData(audioID)->audio->getStatus() == (int)AudioStates::PAUSED;
+		}
+		int IsPlaying(audioID_t audioID) 
+		{
+			return GetAudioData(audioID)->audio->getStatus() == (int)AudioStates::PLAYING;
 		}
 
 		//** misc. functions **
-		float DBToVolume(float dB)
+		float DBToVolume(float DB)
 		{
-			return powf(10.0f, 0.05f * dB);
+			return powf(10.0f, 0.05f * DB);
 		}
-		float VolumeTodB(float volume)
+		float VolumeToDB(float volume)
 		{
 			return 20.0f * log10f(volume);
 		}
 
-		//*** containers ***
-		std::unordered_map<audioID_t, T*> audios; // A map containing the currently loaded audios (could be streams or sounds)
-		std::vector<std::string> supportedFileExtensions{ ".ogg", ".wav", ".flac", ".aiff", ".au", ".raw", ".paf", ".svx", ".nist",
-														".voc", ".ircam", ".w64", ".mat4", ".mat5", ".pvf", ".htk", ".sds", ".avr",
-														".sd2", ".caf", ".wve", ".mpc2k", ".rf64" };
-
-		unsigned int IDCounter = 0; //This will be incremented every GenerateID() call, and it's value will be used as a unique audioID
-		const unsigned int AUDIO_LIMIT = 255;
+		std::string supportedFileExtensions[23] = { ".ogg", ".wav", ".flac", ".aiff", ".au", ".raw", ".paf", ".svx", 
+													".nist", ".voc", ".ircam", ".w64", ".mat4", ".mat5", ".pvf", ".htk",
+													".sds", ".avr",".sd2", ".caf", ".wve", ".mpc2k", ".rf64" };
 	};
 }
 

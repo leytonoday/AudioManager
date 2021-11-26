@@ -26,7 +26,7 @@ namespace AudioManager
 
 			SoundData* soundData = new SoundData({ path, looping, volume, pitch, GenerateID() });
 			soundData->audio = MakeSound(soundData);
-			soundData->duration = soundData->audio->getBuffer()->getDuration().asMicroseconds();
+			soundData->duration = soundData->audio->getBuffer()->getDuration().asMilliseconds();
 			audios[soundData->ID] = soundData;
 			return soundData->ID;
 		}

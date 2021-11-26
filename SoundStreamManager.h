@@ -31,4 +31,4 @@ namespace AudioManager
 	};
 }
 
-#endif SOUND_STREAM_MANAGER_H
+#endif
