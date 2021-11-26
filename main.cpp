@@ -7,9 +7,9 @@ int main()
 	AudioManager::SoundManager sm;
 	audioID_t audioID = sm.Load("wavSound1.wav");
 
-	sm.PlayAll();
+	sm.Play(audioID);
 	while (sm.IsPlaying(audioID)) {} // Audio playing here
-	sm.UnloadAll();
+	sm.Unload(audioID);
 
 	return 0;
 }
