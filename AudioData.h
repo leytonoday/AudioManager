@@ -15,7 +15,7 @@ namespace AudioManager
 		float			volume;
 		float			pitch;
 		audioID_t		ID;
-		int				duration;
+		int			duration;
 	};
 	
 	// Used for small audios and effects
