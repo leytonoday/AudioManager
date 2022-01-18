@@ -2,7 +2,7 @@
 
 The Audio Manager is used to elegantly implement audio into your C++ console or GUI applications. 
 
-Implementing audio into an application can be quite daunting, with APIs such as OpenAL and XAudio2. This header only solution alleviates the burdon of operating these low-level APIs, and presents the user with a simple pair of high level classes: ```SoundStreamManager``` for long audio (music) and ```SoundManager``` for short audio (sfx). 
+Implementing audio into an application can be quite daunting, with APIs such as OpenAL and XAudio2. This header only solution alleviates the burden of operating these low-level APIs, and presents the user with a simple pair of high level classes: ```SoundStreamManager``` for long audio (music) and ```SoundManager``` for short audio (sfx). 
 
 
 ## Project Setup
