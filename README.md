@@ -11,7 +11,7 @@ It is a helpful wrapper around the audio module of SFML, and as a result, you wi
 Visit this webpage for further instructions: https://www.sfml-dev.org/tutorials/2.5/start-vc.php
 
 ## Usage
-Each audio has an ID, of type ```audioID_t```, which is just an ```std::uint32_t``` in the background. You load the audio, and simply pass the ID of the audio you which to control.
+Each audio has an ID, of type ```audioID_t```, which is just an ```std::uint32_t``` in the background. You load the audio, and simply pass the ID of the audio you wish to control.
 
 In the following example, I use the ```SoundManager``` class. Alternatively, you could use ```SoundStreamManager``` in the exact same way. You can find a list of functions in AudioManager.h.
 
